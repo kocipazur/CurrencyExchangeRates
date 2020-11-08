@@ -25,7 +25,7 @@ namespace CurrencyExchangeRates.Services
             _logger = logger;
             _configuration = configuration;
         }
-        public ExchangeRatesResponse GetExchangeRates(Dictionary<string, string> currencies, 
+        public async Task<ExchangeRatesResponse> GetExchangeRatesAsync(Dictionary<string, string> currencies, 
             DateTime startDate, DateTime endDate)
         {
             List<ECBCsvResponseModel> records;
@@ -40,7 +40,8 @@ namespace CurrencyExchangeRates.Services
 
             using WebClient webClient = new WebClient();
             webClient.Headers.Add("Accept", _configuration.DataFormatHeader);
-            records = GetAgregatedCurriencesResponse(webClient, query);
+            string data = await webClient.DownloadStringTaskAsync(query);
+            records = GetAgregatedCurriencesResponse(data);
 
             var ecbResponse = MapECBResposne(records);
 
@@ -55,10 +56,9 @@ namespace CurrencyExchangeRates.Services
             throw new NotImplementedException();
         }
 
-        private List<ECBCsvResponseModel> GetAgregatedCurriencesResponse(WebClient webClient, string query)
+        private List<ECBCsvResponseModel> GetAgregatedCurriencesResponse(string data)
         {
             List<ECBCsvResponseModel> tempResponse = new List<ECBCsvResponseModel>();
-            var data = webClient.DownloadString(query);
 
             using TextReader reader = new StringReader(data);
             using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);

@@ -8,7 +8,6 @@ namespace CurrencyExchangeRates.Services
 {
     public interface IExternalCurrencyRatesService
     {
-        public ExchangeRatesResponse GetExchangeRates(Dictionary<string, string> currencies, DateTime startDate, DateTime endDate);
-        public double GetSingleExchangeRate(string baseCurrency, string denominatedCurrency, DateTime date);
+        public Task<ExchangeRatesResponse> GetExchangeRatesAsync(Dictionary<string, string> currencies, DateTime startDate, DateTime endDate);
     }
 }

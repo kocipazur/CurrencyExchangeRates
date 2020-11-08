@@ -15,6 +15,8 @@ using CurrencyExchangeRates.Models;
 using CurrencyExchangeRates.Models.Configuration;
 using CurrencyExchangeRates.Services;
 using CurrencyExchangeRates.Utils;
+using CurrencyExchangeRates.Middlewares;
+using Microsoft.AspNetCore.Http;
 
 namespace CurrencyExchangeRates
 {
@@ -31,12 +33,17 @@ namespace CurrencyExchangeRates
         {
 
             services.AddConfiguration<ECBServiceConfiguration>(Configuration, "ECBService");
+            services.AddConfiguration<DatabaseConfiguration>(Configuration, "Database");
+            services.AddConfiguration<PersistentDBCacheConfiguration>(Configuration, "DBCache");
+            services.AddSingleton<ICacheManager, DBResponseCache>();
             services.AddTransient<IExternalCurrencyRatesService, ECBService>();
+            services.AddTransient<IApiKeyManager, DBApiKeyManager>();
             services.AddControllers()
                 .AddJsonOptions(options =>
                 {
                     options.JsonSerializerOptions.Converters.Add(new DateTimeConverter());
                 });
+            services.AddResponseCaching();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -45,12 +52,13 @@ namespace CurrencyExchangeRates
             {
                 app.UseDeveloperExceptionPage();
             }
+            app.UseMiddleware<LoggingMiddleware>();
+
+            app.UseResponseCaching();
 
             app.UseHttpsRedirection();
 
             app.UseRouting();
-
-            app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>
             {
