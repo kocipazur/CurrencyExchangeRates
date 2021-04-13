@@ -10,6 +10,7 @@ using CurrencyExchangeRates.Services;
 using System.Text.Json;
 using CurrencyExchangeRates.Exceptions;
 using CurrencyExchangeRates.Attributes;
+using System.Threading;
 
 namespace CurrencyExchangeRates.Controllers
 {
@@ -32,7 +33,7 @@ namespace CurrencyExchangeRates.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Get([FromQuery]ExchangeRatesRequest request)
+        public async Task<IActionResult> Get([FromQuery]ExchangeRatesRequest request, CancellationToken cancellationToken)
         {
             try
             {
@@ -47,7 +48,7 @@ namespace CurrencyExchangeRates.Controllers
                         "and earlier or equal to current date!");
 
                 var response = await _currencyRatesService.GetExchangeRatesAsync(request.currencyCodes, 
-                        request.startDate, endDate);
+                        request.startDate, endDate, cancellationToken);
 
                 return Ok(response);
             }

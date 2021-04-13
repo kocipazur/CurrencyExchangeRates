@@ -13,6 +13,7 @@ using System.Text;
 using CsvHelper;
 using System.Net;
 using System.Globalization;
+using System.Threading;
 
 namespace CurrencyExchangeRates.Services
 {
@@ -20,13 +21,18 @@ namespace CurrencyExchangeRates.Services
     {
         private readonly ILogger<ECBService> _logger;
         private readonly ECBServiceConfiguration _configuration;
-        public ECBService(ILogger<ECBService> logger, ECBServiceConfiguration configuration)
+        private readonly HttpClient _httpClient;
+
+        public ECBService(ILogger<ECBService> logger, 
+            ECBServiceConfiguration configuration,
+            HttpClient httpClient)
         {
             _logger = logger;
             _configuration = configuration;
+            _httpClient = httpClient;
         }
         public async Task<ExchangeRatesResponse> GetExchangeRatesAsync(Dictionary<string, string> currencies, 
-            DateTime startDate, DateTime endDate)
+            DateTime startDate, DateTime endDate, CancellationToken cancellationToken)
         {
             List<ECBCsvResponseModel> records;
 
@@ -38,10 +44,17 @@ namespace CurrencyExchangeRates.Services
                 $"startPeriod={startDate:yyyy-MM-dd}&" +
                 $"endPeriod={endDate:yyyy-MM-dd}";
 
-            using WebClient webClient = new WebClient();
-            webClient.Headers.Add("Accept", _configuration.DataFormatHeader);
-            string data = await webClient.DownloadStringTaskAsync(query);
-            records = GetAgregatedCurriencesResponse(data);
+            var request = new HttpRequestMessage
+            {
+                Method = HttpMethod.Get,
+                RequestUri = new Uri(query)
+            };
+
+            request.Headers.Add("Accept", _configuration.DataFormatHeader);
+
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+
+            records = GetAgregatedCurriencesResponse(await response.Content.ReadAsStringAsync());
 
             var ecbResponse = MapECBResposne(records);
 
@@ -99,9 +112,11 @@ namespace CurrencyExchangeRates.Services
             List<DateTime> fullDatesSequence = Enumerable.Range(0, 1 + end.Subtract(start).Days)
                 .Select(offset => start.AddDays(offset))
                 .ToList();
-            List<DateTime> responseDays = ecbResponse.ExchangeRates.First().
-                ExchangeRatesByDays.Select(x => x.Day)
+
+            List<DateTime> responseDays = ecbResponse.ExchangeRates.First()
+                .ExchangeRatesByDays.Select(x => x.Day)
                 .ToList();
+
             List<DateTime> lackingDays = fullDatesSequence
                 .Where(f => !responseDays.Any(d => d.Date == f.Date))
                 .ToList();
@@ -129,7 +144,12 @@ namespace CurrencyExchangeRates.Services
         {
             try
             {
-                return new RateByDay() { Day = date, Rate = exchangeRatesByDays.Where(rate => rate.Day.Date == date.AddDays(-1).Date).First().Rate };
+                return new RateByDay() { 
+                    Day = date, 
+                    Rate = exchangeRatesByDays.Where(rate => rate.Day.Date == date.AddDays(-1).Date)
+                                                .First()
+                                                .Rate 
+                };
             }
             catch (Exception ex)
             {

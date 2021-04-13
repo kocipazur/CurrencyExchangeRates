@@ -35,15 +35,18 @@ namespace CurrencyExchangeRates
             services.AddConfiguration<ECBServiceConfiguration>(Configuration, "ECBService");
             services.AddConfiguration<DatabaseConfiguration>(Configuration, "Database");
             services.AddConfiguration<PersistentDBCacheConfiguration>(Configuration, "DBCache");
+
             services.AddSingleton<ICacheManager, DBResponseCache>();
-            services.AddTransient<IExternalCurrencyRatesService, ECBService>();
             services.AddTransient<IApiKeyManager, DBApiKeyManager>();
+            services.AddHttpClient<IExternalCurrencyRatesService, ECBService>();
+
             services.AddControllers()
                 .AddJsonOptions(options =>
                 {
                     options.JsonSerializerOptions.Converters.Add(new DateTimeConverter());
                 });
             services.AddResponseCaching();
+
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
